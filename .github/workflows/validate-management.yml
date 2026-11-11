@@ -1,0 +1,36 @@
+name: Validate Google Ads management tools
+on:
+  push:
+    branches: [feature/campaign-management-review]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile Python source
+        run: python -m compileall -q ads_mcp
+      - name: Install dependencies
+        run: pip install -e .
+      - name: Import management tools and confirm safe defaults
+        env:
+          GOOGLE_ADS_MCP_OAUTH_CLIENT_ID: ''
+          GOOGLE_ADS_MCP_OAUTH_CLIENT_SECRET: ''
+          GOOGLE_ADS_MCP_WRITE_CUSTOMER_ID: ''
+        run: |
+          python - <<'PY'
+          from ads_mcp.tools.campaigns import manage_campaign, manage_budget, _account
+          from fastmcp.exceptions import ToolError
+          try:
+              _account("1212852768")
+          except ToolError:
+              print("Write access fails closed by default.")
+          else:
+              raise AssertionError("Writes must fail without explicit allowed customer")
+          print("Campaign management module imported successfully.")
+          PY
