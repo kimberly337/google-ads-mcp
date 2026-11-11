@@ -4,3 +4,4 @@ namespaces:
   metadata: true
   labels: false
   assets: false
+  campaigns: true
