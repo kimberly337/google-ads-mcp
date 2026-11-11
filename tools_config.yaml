@@ -1,0 +1,6 @@
+namespaces:
+  customers: true
+  search: true
+  metadata: true
+  labels: false
+  assets: false
