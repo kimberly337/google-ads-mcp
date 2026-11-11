@@ -20,7 +20,6 @@ jobs:
       - name: Install dependencies
         run: pip install -e . black
       - name: Normalize new file and regenerate tool snapshot
-        if: github.event_name == 'push'
         run: |
           black -l 80 ads_mcp/tools/campaigns.py
           python -m tests.smoke.generate_golden
