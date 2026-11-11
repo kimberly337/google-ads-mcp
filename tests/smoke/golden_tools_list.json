@@ -7,18 +7,21 @@
         }
       },
       "annotations": {
-        "destructiveHint": false,
+        "destructiveHint": true,
         "readOnlyHint": false
       },
-      "description": "Creates a new Google Ads asset under the specified customer account.\n\nRequired & Optional parameters per `asset_type`:\n- **TEXT**: Requires `text_asset_text`.\n- **IMAGE**: Requires either `image_asset_path` (absolute local path, local stdio mode only)\n  OR `image_asset_data` (base64 encoded string). If `image_asset_data` is provided,\n  `image_asset_mime_type` is also required (e.g. 'IMAGE_PNG', 'IMAGE_JPEG', 'IMAGE_GIF').\n- **YOUTUBE_VIDEO**: Requires `youtube_video_id`.\n- **SITELINK**: Requires `sitelink_link_text` and root-level `final_urls`.\n  Accepts optional `sitelink_description1` and `sitelink_description2`.\n- **CALLOUT**: Requires `callout_text`.\n- **STRUCTURED_SNIPPET**: Requires `structured_snippet_header` and `structured_snippet_values`.\n\nRoot-level URL and tracking configurations (optional except where noted):\n- `name`: Optional display name for the asset.\n- `final_urls`: Required for SITELINK. A list of URLs.\n- `final_mobile_urls`: List of mobile-specific destination URLs.\n- `tracking_url_template`: Template for constructing a tracking URL.\n- `final_url_suffix`: Suffix appended to the final URL.\n- `url_custom_parameters`: Custom parameters represented as a list of dicts (with 'key' and 'value').\n\nFor any other asset type, provide `extra_params` as a dict representing the sub-asset message fields.\n\nPropose & Confirm Workflow (`validate_only` and `checksum`):\n1. Call `create_asset` with `validate_only=True` (the default). After validation passes, the tool returns structured `change_items` and a `checksum` without committing changes.\n2. Present the `change_items` to the user and wait for explicit user approval.\n3. Only after user confirmation, call `create_asset` with `validate_only=False` along with the exact same parameters and the `checksum` returned by the previous `validate_only=True` call.",
+      "description": "Create or change a daily campaign budget. Amount is in micros.\n\nFor USD, $10.00/day is 10000000 micros. Google can spend more than\nthe average daily amount on individual days subject to its billing rules.\nSome budgets are shared by multiple campaigns. Check linked campaigns\nbefore updating. ALWAYS validate, present exact changes and get explicit\nuser approval before confirming with the supplied checksum.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "asset_type": {
-            "description": "Type of the asset (e.g., 'TEXT', 'IMAGE', 'YOUTUBE_VIDEO', 'SITELINK', 'CALLOUT', 'STRUCTURED_SNIPPET').",
+          "action": {
+            "enum": [
+              "CREATE",
+              "UPDATE_AMOUNT"
+            ],
             "type": "string"
           },
-          "callout_text": {
+          "budget_id": {
             "anyOf": [
               {
                 "type": "string"
@@ -27,8 +30,7 @@
                 "type": "null"
               }
             ],
-            "default": null,
-            "description": "Optional callout text (required for CALLOUT type)."
+            "default": null
           },
           "checksum": {
             "anyOf": [
@@ -39,110 +41,13 @@
                 "type": "null"
               }
             ],
-            "default": null,
-            "description": "Checksum of the validated operation returned by a prior `validate_only=True` call. Required when `validate_only=False`."
+            "default": null
           },
           "customer_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "integer"
-              }
-            ],
-            "description": "Google Ads Customer ID (digits or hyphenated, e.g. '1234567890')."
+            "type": "string"
           },
-          "extra_params": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Optional dict representing nested parameters for less common asset types."
-          },
-          "final_mobile_urls": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Optional list of final mobile URLs."
-          },
-          "final_url_suffix": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Optional final URL suffix."
-          },
-          "final_urls": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Optional list of final URLs (required for SITELINK)."
-          },
-          "image_asset_data": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Optional base64 encoded image data (supported for IMAGE type)."
-          },
-          "image_asset_mime_type": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Optional MIME type (e.g., 'IMAGE_PNG', 'IMAGE_JPEG', 'IMAGE_GIF'; required if image_asset_data is used)."
-          },
-          "image_asset_path": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Optional absolute file path to a local image (supported for IMAGE type in local stdio mode)."
+          "daily_amount_micros": {
+            "type": "integer"
           },
           "login_customer_id": {
             "anyOf": [
@@ -150,14 +55,10 @@
                 "type": "string"
               },
               {
-                "type": "integer"
-              },
-              {
                 "type": "null"
               }
             ],
-            "default": null,
-            "description": "Optional manager customer ID to use as the login-customer-id header."
+            "default": null
           },
           "name": {
             "anyOf": [
@@ -168,149 +69,21 @@
                 "type": "null"
               }
             ],
-            "default": null,
-            "description": "Optional name of the asset."
-          },
-          "sitelink_description1": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Optional sitelink line 1 description."
-          },
-          "sitelink_description2": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Optional sitelink line 2 description."
-          },
-          "sitelink_link_text": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Optional link text (required for SITELINK type)."
-          },
-          "structured_snippet_header": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Optional structured snippet header category (required for STRUCTURED_SNIPPET type)."
-          },
-          "structured_snippet_values": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Optional structured snippet list of values (required for STRUCTURED_SNIPPET type)."
-          },
-          "text_asset_text": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Optional text content (required for TEXT type)."
-          },
-          "tracking_url_template": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Optional tracking URL template."
-          },
-          "url_custom_parameters": {
-            "anyOf": [
-              {
-                "items": {
-                  "description": "Key-value pair for custom tracking URL parameters.",
-                  "properties": {
-                    "key": {
-                      "type": "string"
-                    },
-                    "value": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "key",
-                    "value"
-                  ],
-                  "type": "object"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Optional custom parameters for tracking (list of {'key': ..., 'value': ...} dicts)."
+            "default": null
           },
           "validate_only": {
             "default": true,
-            "description": "If True (default), validates the request and returns proposed `change_items` and a `checksum` without creating the asset. If False, requires `checksum` from a prior `validate_only=True` call to commit the asset creation.",
             "type": "boolean"
-          },
-          "youtube_video_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Optional YouTube 11-character video ID (required for YOUTUBE_VIDEO type)."
           }
         },
         "required": [
           "customer_id",
-          "asset_type"
+          "action",
+          "daily_amount_micros"
         ],
         "type": "object"
       },
-      "name": "assets_create_asset",
+      "name": "campaigns_manage_budget",
       "outputSchema": {
         "properties": {
           "result": {
@@ -323,7 +96,7 @@
         "type": "object",
         "x-fastmcp-wrap-result": true
       },
-      "title": "Assets Create Asset"
+      "title": "Campaigns Manage Budget"
     },
     {
       "_meta": {
@@ -332,16 +105,44 @@
         }
       },
       "annotations": {
-        "destructiveHint": false,
+        "destructiveHint": true,
         "readOnlyHint": false
       },
-      "description": "Uploads a video to YouTube natively via the Google Ads API.\n\nOnce a video has been uploaded, it can be used to create a video asset.\nThis operation executes via a FastMCP background task to gracefully handle large file uploads\n(supported in local stdio mode only).\nOnce the upload finishes successfully, using the search tool and querying the `you_tube_video_upload`\nresource matching the returned ID allows you to retrieve the YouTube Video ID and processing status.\n\nPropose & Confirm Workflow (`validate_only` and `checksum`):\n1. Call `upload_video_asset` with `validate_only=True` (the default). After validation passes, the tool returns structured `change_items` and a `checksum` without uploading the video.\n2. Present the `change_items` to the user and wait for explicit user approval.\n3. Only after user confirmation, call `upload_video_asset` with `validate_only=False` along with the exact same parameters and the `checksum` returned by the previous `validate_only=True` call.",
-      "execution": {
-        "taskSupport": "optional"
-      },
+      "description": "Create a PAUSED Search campaign, rename one, or pause/resume one.\n\nALWAYS call with validate_only=True first, show the change_items, and obtain\nexplicit user approval. Only then call with validate_only=False and the\nchecksum of the approved proposal. RESUME can cause advertising spending.\nCREATE_PAUSED only builds an empty paused Search campaign: no ads or\ntargeting are automatically created.\n\nbudget_id is required for CREATE_PAUSED; prepare it with manage_budget.\ncontains_eu_political_advertising must be explicitly declared for creation.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
+          "action": {
+            "enum": [
+              "CREATE_PAUSED",
+              "RENAME",
+              "PAUSE",
+              "RESUME"
+            ],
+            "type": "string"
+          },
+          "budget_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "campaign_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "checksum": {
             "anyOf": [
               {
@@ -351,19 +152,21 @@
                 "type": "null"
               }
             ],
-            "default": null,
-            "description": "Checksum of the validated operation returned by a prior `validate_only=True` call. Required when `validate_only=False`."
+            "default": null
           },
-          "customer_id": {
+          "contains_eu_political_advertising": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "boolean"
               },
               {
-                "type": "integer"
+                "type": "null"
               }
             ],
-            "description": "Google Ads Customer ID (digits or hyphenated, e.g. '1234567890')."
+            "default": null
+          },
+          "customer_id": {
+            "type": "string"
           },
           "login_customer_id": {
             "anyOf": [
@@ -371,43 +174,12 @@
                 "type": "string"
               },
               {
-                "type": "integer"
-              },
-              {
                 "type": "null"
               }
             ],
-            "default": null,
-            "description": "Optional manager customer ID to use as the login-customer-id header."
+            "default": null
           },
-          "validate_only": {
-            "default": true,
-            "description": "If True (default), validates the request and returns proposed `change_items` and a `checksum` without uploading the video. If False, requires `checksum` from a prior `validate_only=True` call to execute the video upload.",
-            "type": "boolean"
-          },
-          "video_description": {
-            "description": "The description text attached to your YouTube video.",
-            "type": "string"
-          },
-          "video_path": {
-            "description": "The absolute path on the local filesystem to the video file to be uploaded (local stdio mode only).",
-            "type": "string"
-          },
-          "video_privacy": {
-            "default": "UNLISTED",
-            "description": "The privacy setting of the video on YouTube. Default is UNLISTED. Valid values are: PUBLIC, UNLISTED, PRIVATE. Note: PUBLIC is only allowed for brand channels.",
-            "enum": [
-              "PUBLIC",
-              "UNLISTED",
-              "PRIVATE"
-            ],
-            "type": "string"
-          },
-          "video_title": {
-            "description": "The title you wish your video to have on YouTube.",
-            "type": "string"
-          },
-          "youtube_channel_id": {
+          "name": {
             "anyOf": [
               {
                 "type": "string"
@@ -416,19 +188,20 @@
                 "type": "null"
               }
             ],
-            "default": null,
-            "description": "Optional. The ID of the YouTube channel the video will be uploaded to. If not provided, it will be uploaded to a Google-managed YouTube channel linked to your ads account."
+            "default": null
+          },
+          "validate_only": {
+            "default": true,
+            "type": "boolean"
           }
         },
         "required": [
           "customer_id",
-          "video_title",
-          "video_description",
-          "video_path"
+          "action"
         ],
         "type": "object"
       },
-      "name": "assets_upload_video_asset",
+      "name": "campaigns_manage_campaign",
       "outputSchema": {
         "properties": {
           "result": {
@@ -441,7 +214,7 @@
         "type": "object",
         "x-fastmcp-wrap-result": true
       },
-      "title": "Assets Upload Video Asset"
+      "title": "Campaigns Manage Campaign"
     },
     {
       "_meta": {
@@ -475,276 +248,6 @@
         "x-fastmcp-wrap-result": true
       },
       "title": "Customers List Accessible Customers"
-    },
-    {
-      "_meta": {
-        "fastmcp": {
-          "tags": []
-        }
-      },
-      "annotations": {
-        "destructiveHint": true,
-        "readOnlyHint": false
-      },
-      "description": "Manages associations between labels and Campaign, Customer, Ad Group, or Ad Group Criterion.\n\nSupports CREATE and REMOVE operations.\n\nPropose & Confirm Workflow (`validate_only` and `checksum`):\n1. Call `manage_label_associations` with `validate_only=True` (the default). After validation passes, the tool returns structured `change_items` and a `checksum` without committing changes.\n2. Present the `change_items` to the user and wait for explicit user approval.\n3. Only after user confirmation, call `manage_label_associations` with `validate_only=False` along with the exact same parameters and the `checksum` returned by the previous `validate_only=True` call.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "association_resource_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "The full resource name of the association itself\n(e.g., 'customers/123/campaignLabels/456~789'). Optional alternative for REMOVE\nwhen `resource_id` and `label_id` are not provided."
-          },
-          "association_type": {
-            "description": "The type of resource being associated.\nMust be 'CAMPAIGN', 'CUSTOMER', 'AD_GROUP', or 'AD_GROUP_CRITERION'.",
-            "enum": [
-              "CAMPAIGN",
-              "CUSTOMER",
-              "AD_GROUP",
-              "AD_GROUP_CRITERION"
-            ],
-            "type": "string"
-          },
-          "checksum": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Checksum of the validated operation returned by a prior `validate_only=True` call. Required when `validate_only=False`."
-          },
-          "customer_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "integer"
-              }
-            ],
-            "description": "Google Ads Customer ID (digits or hyphenated, e.g. '1234567890')."
-          },
-          "label_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "The ID of the Label (e.g., '789'). Required for CREATE."
-          },
-          "login_customer_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Optional manager customer ID to use as the login-customer-id header."
-          },
-          "operation": {
-            "description": "The operation to perform. Must be 'CREATE' or 'REMOVE'.",
-            "enum": [
-              "CREATE",
-              "REMOVE"
-            ],
-            "type": "string"
-          },
-          "resource_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "The ID of the entity to associate (e.g., '456' for CAMPAIGN or AD_GROUP,\nor composite '{ad_group_id}~{criterion_id}' such as '456~789' for AD_GROUP_CRITERION).\nOptional for CUSTOMER (defaults to `customer_id`); required for CREATE on other types."
-          },
-          "validate_only": {
-            "default": true,
-            "description": "If True (default), validates the request and returns proposed `change_items` and a `checksum` without mutating the association. If False, requires `checksum` from a prior `validate_only=True` call to commit the mutation.",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "customer_id",
-          "operation",
-          "association_type"
-        ],
-        "type": "object"
-      },
-      "name": "labels_manage_label_associations",
-      "outputSchema": {
-        "properties": {
-          "result": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "result"
-        ],
-        "type": "object",
-        "x-fastmcp-wrap-result": true
-      },
-      "title": "Labels Manage Label Associations"
-    },
-    {
-      "_meta": {
-        "fastmcp": {
-          "tags": []
-        }
-      },
-      "annotations": {
-        "destructiveHint": true,
-        "readOnlyHint": false
-      },
-      "description": "Manages Label resources. Supports CREATE, UPDATE, and REMOVE operations.\n\nPropose & Confirm Workflow (`validate_only` and `checksum`):\n1. Call `manage_labels` with `validate_only=True` (the default). After validation passes, the tool returns structured `change_items` and a `checksum` without committing changes.\n2. Present the `change_items` to the user and wait for explicit user approval.\n3. Only after user confirmation, call `manage_labels` with `validate_only=False` along with the exact same parameters and the `checksum` returned by the previous `validate_only=True` call.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "background_color": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Background color in HTML hex format (e.g., '#FF0000'). Optional."
-          },
-          "checksum": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Checksum of the validated operation returned by a prior `validate_only=True` call. Required when `validate_only=False`."
-          },
-          "customer_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "integer"
-              }
-            ],
-            "description": "Google Ads Customer ID (digits or hyphenated, e.g. '1234567890')."
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Description of the label. Optional."
-          },
-          "label_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "The ID of the label (e.g., '456'). Required for UPDATE and REMOVE."
-          },
-          "login_customer_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Optional manager customer ID to use as the login-customer-id header."
-          },
-          "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "The name of the label. Required for CREATE, optional for UPDATE."
-          },
-          "operation": {
-            "description": "The operation to perform. Must be 'CREATE', 'UPDATE', or 'REMOVE'.",
-            "enum": [
-              "CREATE",
-              "UPDATE",
-              "REMOVE"
-            ],
-            "type": "string"
-          },
-          "validate_only": {
-            "default": true,
-            "description": "If True (default), validates the request and returns proposed `change_items` and a `checksum` without mutating the label. If False, requires `checksum` from a prior `validate_only=True` call to commit the mutation.",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "customer_id",
-          "operation"
-        ],
-        "type": "object"
-      },
-      "name": "labels_manage_labels",
-      "outputSchema": {
-        "properties": {
-          "result": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "result"
-        ],
-        "type": "object",
-        "x-fastmcp-wrap-result": true
-      },
-      "title": "Labels Manage Labels"
     },
     {
       "_meta": {
@@ -800,13 +303,12 @@
       "annotations": {
         "readOnlyHint": true
       },
-      "description": "Fetches data from the Google Ads API using the search method",
+      "description": "Fetches data from the Google Ads API using the search method\n\n    Args:\n        customer_id: The id of the customer\n        fields: The fields to fetch\n        resource: The resource to return fields from\n        conditions: List of conditions to filter the data, combined using AND clauses\n        orderings: How the data is ordered\n        limit: The maximum number of rows to return\n        login_customer_id: Optional manager customer ID to use as the login-customer-id header.\n\n    \n\n### Hints\n    Language Grammar can be found at https://developers.google.com/google-ads/api/docs/query/grammar\n    All resources and descriptions are found at https://developers.google.com/google-ads/api/fields/latest/overview\n    If the query fails, a ToolError will be raised with the error details.\n\n    For Conversion issues try looking in offline_conversion_upload_conversion_action_summary\n\n### Hint for customer_id\n    should be a string of numbers without punctuation\n    if presented in the form 123-456-7890 remove the hyphens and use 1234567890\n\n### Hints for Dates\n    All dates should be in the form YYYY-MM-DD and must include the dashes (-)\n    Date ranges must be finite and must include a start and end date\n\n### Hints for historical metrics\n    Status fields (campaign.status, ad_group.status, ad_group_criterion.status, ad_group_ad.status) hold the current status, not the status during the date range\n    When selecting metrics over a date range, do not filter on status (e.g. campaign.status = 'ENABLED' or campaign.status != 'REMOVED')\n    Entities paused or removed during the range would drop out and totals would understate cost and conversions\n    To leave out removed entities with no activity, remove rows with zero impressions after the query instead\n    Filter on status only when asking what is live now\n\n### Hints for limits\n    Requests to resource change_event must specify a LIMIT of less than or equal to 10000\n\n### Hints for conversions questions\n    https://developers.google.com/google-ads/api/docs/conversions/upload-summaries \n\n\n### Hints for all resources\n    To find out which specific fields (including compatible metrics and segments) you can select, filter by, or sort by for a given resource, you MUST use the `get_resource_metadata` tool.\n    Do not guess the fields. Use the tool to look them up.\n    Once you have the fields, ensure the whole field name is used (e.g., 'campaign.id', not just 'id'). Wildcards and partial fields are not allowed.\n\n### Valid resources\n    What follows is a list of valid resources that can be queried.\n    accessible_bidding_strategy\naccount_budget\naccount_budget_proposal\naccount_link\nad\nad_group\nad_group_ad\nad_group_ad_asset_combination_view\nad_group_ad_asset_view\nad_group_ad_label\nad_group_asset\nad_group_asset_set\nad_group_audience_view\nad_group_bid_modifier\nad_group_criterion\nad_group_criterion_customizer\nad_group_criterion_label\nad_group_criterion_simulation\nad_group_customizer\nad_group_label\nad_group_simulation\nad_parameter\nad_schedule_view\nage_range_view\nai_max_search_term_ad_combination_view\nandroid_privacy_shared_key_google_ad_group\nandroid_privacy_shared_key_google_campaign\nandroid_privacy_shared_key_google_network_type\napp_top_combination_view\napplied_incentive\nasset\nasset_field_type_view\nasset_group\nasset_group_asset\nasset_group_listing_group_filter\nasset_group_product_group_view\nasset_group_signal\nasset_group_top_combination_view\nasset_set\nasset_set_asset\nasset_set_type_view\naudience\nbatch_job\nbidding_data_exclusion\nbidding_seasonality_adjustment\nbidding_strategy\nbidding_strategy_simulation\nbilling_setup\ncall_view\ncampaign\ncampaign_aggregate_asset_view\ncampaign_asset\ncampaign_asset_set\ncampaign_audience_view\ncampaign_bid_modifier\ncampaign_budget\ncampaign_conversion_goal\ncampaign_criterion\ncampaign_customizer\ncampaign_draft\ncampaign_goal_config\ncampaign_group\ncampaign_label\ncampaign_search_term_insight\ncampaign_search_term_view\ncampaign_shared_set\ncampaign_simulation\ncarrier_constant\ncart_data_sales_view\nchange_event\nchange_status\nchannel_aggregate_asset_view\nclick_view\ncombined_audience\ncontent_criterion_view\nconversion_action\nconversion_custom_variable\nconversion_goal_campaign_config\nconversion_value_rule\nconversion_value_rule_set\ncurrency_constant\ncustom_audience\ncustom_conversion_goal\ncustom_interest\ncustomer\ncustomer_asset\ncustomer_asset_set\ncustomer_client\ncustomer_client_link\ncustomer_conversion_goal\ncustomer_customizer\ncustomer_label\ncustomer_manager_link\ncustomer_negative_criterion\ncustomer_search_term_insight\ncustomer_user_access\ncustomer_user_access_invitation\ncustomizer_attribute\ndata_link\ndetail_content_suitability_placement_view\ndetail_placement_view\ndetailed_demographic\ndisplay_keyword_view\ndistance_view\ndomain_category\ndynamic_search_ads_search_term_view\nexpanded_landing_page_view\nexperiment\nexperiment_arm\nfinal_url_expansion_asset_view\ngender_view\ngeo_target_constant\ngeographic_view\ngoal\ngroup_content_suitability_placement_view\ngroup_placement_view\nhotel_group_view\nhotel_performance_view\nhotel_reconciliation\nincome_range_view\nkeyword_plan\nkeyword_plan_ad_group\nkeyword_plan_ad_group_keyword\nkeyword_plan_campaign\nkeyword_plan_campaign_keyword\nkeyword_theme_constant\nkeyword_view\nlabel\nlanding_page_view\nlanguage_constant\nlead_form_submission_data\nlife_event\nlocal_services_employee\nlocal_services_lead\nlocal_services_lead_conversation\nlocal_services_verification_artifact\nlocation_interest_view\nlocation_view\nmanaged_placement_view\nmatched_location_interest_view\nmedia_file\nmobile_app_category_constant\nmobile_device_constant\nmulti_party_auth_review\noffline_conversion_upload_client_summary\noffline_conversion_upload_conversion_action_summary\noffline_user_data_job\noperating_system_version_constant\npaid_organic_search_term_view\nparental_status_view\nper_store_view\nperformance_max_placement_view\nproduct_category_constant\nproduct_group_view\nproduct_link\nproduct_link_invitation\nqualifying_question\nrecommendation\nrecommendation_subscription\nremarketing_action\nsearch_term_view\nshared_criterion\nshared_set\nshopping_performance_view\nshopping_product\nsmart_campaign_search_term_view\nsmart_campaign_setting\ntargeting_expansion_view\nthird_party_app_analytics_link\ntopic_constant\ntopic_view\ntravel_activity_group_view\ntravel_activity_performance_view\nuser_interest\nuser_list\nuser_list_customer_type\nuser_location_view\nvideo\nvideo_enhancement\nwebpage_view\nyou_tube_video_upload",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
           "conditions": {
             "default": [],
-            "description": "List of conditions to filter the data, combined using AND clauses",
             "items": {
               "type": "string"
             },
@@ -820,11 +322,9 @@
               {
                 "type": "integer"
               }
-            ],
-            "description": "The id of the customer"
+            ]
           },
           "fields": {
-            "description": "The fields to fetch",
             "items": {
               "type": "string"
             },
@@ -839,8 +339,7 @@
                 "type": "null"
               }
             ],
-            "default": null,
-            "description": "The maximum number of rows to return"
+            "default": null
           },
           "login_customer_id": {
             "anyOf": [
@@ -854,19 +353,16 @@
                 "type": "null"
               }
             ],
-            "default": null,
-            "description": "Optional manager customer ID to use as the login-customer-id header."
+            "default": null
           },
           "orderings": {
             "default": [],
-            "description": "How the data is ordered",
             "items": {
               "type": "string"
             },
             "type": "array"
           },
           "resource": {
-            "description": "The resource to return fields from",
             "type": "string"
           }
         },

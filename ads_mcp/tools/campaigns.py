@@ -5,6 +5,7 @@ Write access is disabled until GOOGLE_ADS_MCP_WRITE_CUSTOMER_ID is set.
 Every create starts PAUSED. Every change is API-validated without executing it
 before a checksum-backed confirmation can be submitted.
 """
+
 import os
 from enum import Enum
 from fastmcp import FastMCP
@@ -35,7 +36,9 @@ def _account(customer_id: str | int) -> str:
         os.environ.get("GOOGLE_ADS_MCP_WRITE_CUSTOMER_ID", "")
     )
     if not customer or not allowed or customer != allowed:
-        raise ToolError("Campaign writes are disabled for this account. Configure GOOGLE_ADS_MCP_WRITE_CUSTOMER_ID to explicitly authorize this customer.")
+        raise ToolError(
+            "Campaign writes are disabled for this account. Configure GOOGLE_ADS_MCP_WRITE_CUSTOMER_ID to explicitly authorize this customer."
+        )
     return customer
 
 
@@ -47,13 +50,17 @@ def _id(value: str | int | None, field: str) -> str:
 
 def _money(daily_amount_micros: int | None) -> int:
     if type(daily_amount_micros) is not int or daily_amount_micros < 10000:
-        raise ToolError("daily_amount_micros must be an integer >= 10000 (0.01 in account currency).")
+        raise ToolError(
+            "daily_amount_micros must be an integer >= 10000 (0.01 in account currency)."
+        )
     if daily_amount_micros > 1000000000000:
         raise ToolError("Budget amount exceeds the connector's safety ceiling.")
     return daily_amount_micros
 
 
-@campaigns_mcp.tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True))
+@campaigns_mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True)
+)
 def manage_campaign(
     customer_id: str,
     action: CampaignAction,
@@ -85,29 +92,44 @@ def manage_campaign(
     target = ""
     if action == CampaignAction.CREATE_PAUSED:
         if not name or not name.strip() or len(name.strip()) > 255:
-            raise ToolError("CREATE_PAUSED requires a campaign name of at most 255 characters.")
+            raise ToolError(
+                "CREATE_PAUSED requires a campaign name of at most 255 characters."
+            )
         if contains_eu_political_advertising is None:
-            raise ToolError("Declare contains_eu_political_advertising explicitly.")
+            raise ToolError(
+                "Declare contains_eu_political_advertising explicitly."
+            )
         budget = _id(budget_id, "budget_id")
         campaign = op.create
         campaign.name = name.strip()
-        campaign.advertising_channel_type = client.enums.AdvertisingChannelTypeEnum.SEARCH
+        campaign.advertising_channel_type = (
+            client.enums.AdvertisingChannelTypeEnum.SEARCH
+        )
         campaign.status = client.enums.CampaignStatusEnum.PAUSED
-        campaign.campaign_budget = f"customers/{customer}/campaignBudgets/{budget}"
+        campaign.campaign_budget = (
+            f"customers/{customer}/campaignBudgets/{budget}"
+        )
         campaign.manual_cpc = client.get_type("ManualCpc")
         campaign.network_settings.target_google_search = True
         campaign.network_settings.target_search_network = False
         campaign.network_settings.target_partner_search_network = False
         campaign.network_settings.target_content_network = False
-        declaration = ("CONTAINS_EU_POLITICAL_ADVERTISING" if contains_eu_political_advertising
-                       else "DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING")
+        declaration = (
+            "CONTAINS_EU_POLITICAL_ADVERTISING"
+            if contains_eu_political_advertising
+            else "DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING"
+        )
         campaign.contains_eu_political_advertising = getattr(
             client.enums.EuPoliticalAdvertisingStatusEnum, declaration
         )
         target = campaign.name
-        change_fields = {"Name": campaign.name, "Channel": "SEARCH",
-                         "Status": "PAUSED", "Budget ID": budget,
-                         "EU political advertising": declaration}
+        change_fields = {
+            "Name": campaign.name,
+            "Channel": "SEARCH",
+            "Status": "PAUSED",
+            "Budget ID": budget,
+            "EU political advertising": declaration,
+        }
     else:
         ident = _id(campaign_id, "campaign_id")
         target = f"customers/{customer}/campaigns/{ident}"
@@ -115,7 +137,9 @@ def manage_campaign(
         campaign.resource_name = target
         if action == CampaignAction.RENAME:
             if not name or not name.strip() or len(name.strip()) > 255:
-                raise ToolError("RENAME requires a name of at most 255 characters.")
+                raise ToolError(
+                    "RENAME requires a name of at most 255 characters."
+                )
             campaign.name = name.strip()
             op.update_mask.paths.append("name")
             change_fields = {"Name": name.strip()}
@@ -123,17 +147,28 @@ def manage_campaign(
             status = "PAUSED" if action == CampaignAction.PAUSE else "ENABLED"
             campaign.status = getattr(client.enums.CampaignStatusEnum, status)
             op.update_mask.paths.append("status")
-            change_fields = {"Status": status, "Spending impact":
-                             "May begin ad serving and incur costs" if status == "ENABLED"
-                             else "Stops campaign ad serving"}
+            change_fields = {
+                "Status": status,
+                "Spending impact": (
+                    "May begin ad serving and incur costs"
+                    if status == "ENABLED"
+                    else "Stops campaign ad serving"
+                ),
+            }
 
     req = client.get_type("MutateCampaignsRequest")
     req.customer_id = customer
     req.operations.append(op)
     req.partial_failure = False
-    items = pac.build_change_items(action.value, "Campaign", target, change_fields)
-    payload = {"tool": "manage_campaign", "action": action.value, "operation": op,
-               "login_customer_id": login_customer_id}
+    items = pac.build_change_items(
+        action.value, "Campaign", target, change_fields
+    )
+    payload = {
+        "tool": "manage_campaign",
+        "action": action.value,
+        "operation": op,
+        "login_customer_id": login_customer_id,
+    }
 
     def validate():
         req.validate_only = True
@@ -145,13 +180,20 @@ def manage_campaign(
         return f"Campaign change applied: {result.results[0].resource_name}"
 
     return pac.propose_and_confirm(
-        customer_id=customer, validate_only=validate_only, checksum=checksum,
-        operation_payload=payload, change_items=items,
-        validate_fn=validate, commit_fn=commit, error_prefix="Campaign mutation failed"
+        customer_id=customer,
+        validate_only=validate_only,
+        checksum=checksum,
+        operation_payload=payload,
+        change_items=items,
+        validate_fn=validate,
+        commit_fn=commit,
+        error_prefix="Campaign mutation failed",
     )
 
 
-@campaigns_mcp.tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True))
+@campaigns_mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True)
+)
 def manage_budget(
     customer_id: str,
     action: BudgetAction,
@@ -174,18 +216,25 @@ def manage_budget(
     action = BudgetAction(action)
     amount = _money(daily_amount_micros)
     client = utils.get_googleads_client(login_customer_id=login_customer_id)
-    service = utils.get_googleads_service_from_client(client, "CampaignBudgetService")
+    service = utils.get_googleads_service_from_client(
+        client, "CampaignBudgetService"
+    )
     op = client.get_type("CampaignBudgetOperation")
     if action == BudgetAction.CREATE:
         if not name or not name.strip() or len(name.strip()) > 255:
-            raise ToolError("CREATE requires a budget name of at most 255 characters.")
+            raise ToolError(
+                "CREATE requires a budget name of at most 255 characters."
+            )
         budget = op.create
         budget.name = name.strip()
         budget.amount_micros = amount
         budget.explicitly_shared = False
         target = budget.name
-        changes = {"Name": budget.name, "Daily amount (micros)": amount,
-                   "Shared": False}
+        changes = {
+            "Name": budget.name,
+            "Daily amount (micros)": amount,
+            "Shared": False,
+        }
     else:
         ident = _id(budget_id, "budget_id")
         target = f"customers/{customer}/campaignBudgets/{ident}"
@@ -193,15 +242,23 @@ def manage_budget(
         budget.resource_name = target
         budget.amount_micros = amount
         op.update_mask.paths.append("amount_micros")
-        changes = {"Daily amount (micros)": amount,
-                   "Spending impact": "Changes daily budget; may affect all campaigns sharing this budget"}
+        changes = {
+            "Daily amount (micros)": amount,
+            "Spending impact": "Changes daily budget; may affect all campaigns sharing this budget",
+        }
     req = client.get_type("MutateCampaignBudgetsRequest")
     req.customer_id = customer
     req.operations.append(op)
     req.partial_failure = False
-    items = pac.build_change_items(action.value, "Campaign Budget", target, changes)
-    payload = {"tool": "manage_budget", "action": action.value,
-               "operation": op, "login_customer_id": login_customer_id}
+    items = pac.build_change_items(
+        action.value, "Campaign Budget", target, changes
+    )
+    payload = {
+        "tool": "manage_budget",
+        "action": action.value,
+        "operation": op,
+        "login_customer_id": login_customer_id,
+    }
 
     def validate():
         req.validate_only = True
@@ -213,7 +270,12 @@ def manage_budget(
         return f"Budget change applied: {result.results[0].resource_name}"
 
     return pac.propose_and_confirm(
-        customer_id=customer, validate_only=validate_only, checksum=checksum,
-        operation_payload=payload, change_items=items,
-        validate_fn=validate, commit_fn=commit, error_prefix="Budget mutation failed"
+        customer_id=customer,
+        validate_only=validate_only,
+        checksum=checksum,
+        operation_payload=payload,
+        change_items=items,
+        validate_fn=validate,
+        commit_fn=commit,
+        error_prefix="Budget mutation failed",
     )
