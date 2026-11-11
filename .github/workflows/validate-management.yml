@@ -18,7 +18,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install dependencies
-        run: pip install -e . black
+        run: pip install -e . black google-genai
       - name: Normalize new file and regenerate tool snapshot
         run: |
           black -l 80 ads_mcp/tools/campaigns.py
