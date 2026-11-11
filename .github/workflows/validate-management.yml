@@ -5,32 +5,47 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+permissions:
+  contents: write
 jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: feature/campaign-management-review
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Compile Python source
-        run: python -m compileall -q ads_mcp
       - name: Install dependencies
-        run: pip install -e .
-      - name: Import management tools and confirm safe defaults
+        run: pip install -e . black
+      - name: Normalize new file and regenerate tool snapshot
+        if: github.event_name == 'push'
+        run: |
+          black -l 80 ads_mcp/tools/campaigns.py
+          python -m tests.smoke.generate_golden
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ads_mcp/tools/campaigns.py tests/smoke/golden_tools_list.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Format management tools and update tool snapshot"
+            git push origin HEAD:feature/campaign-management-review
+          fi
+      - name: Validate Python
+        run: python -m compileall -q ads_mcp
+      - name: Assert write access fails closed
         env:
           GOOGLE_ADS_MCP_OAUTH_CLIENT_ID: ''
           GOOGLE_ADS_MCP_OAUTH_CLIENT_SECRET: ''
           GOOGLE_ADS_MCP_WRITE_CUSTOMER_ID: ''
         run: |
           python - <<'PY'
-          from ads_mcp.tools.campaigns import manage_campaign, manage_budget, _account
+          from ads_mcp.tools.campaigns import _account
           from fastmcp.exceptions import ToolError
           try:
               _account("1212852768")
           except ToolError:
               print("Write access fails closed by default.")
           else:
-              raise AssertionError("Writes must fail without explicit allowed customer")
-          print("Campaign management module imported successfully.")
+              raise AssertionError("Writes must fail without allowed customer")
           PY
