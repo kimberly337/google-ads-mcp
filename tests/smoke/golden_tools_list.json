@@ -185,6 +185,99 @@
         }
       },
       "annotations": {
+        "destructiveHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Replace responsive search ad headlines and descriptions (all values in each list).\nUpdates are not incremental: supply every headline and description to retain.\nDefaults to validate_only=True, with NO changes committed. Requires a fresh\nproposal and explicit user approval before calling validate_only=False.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "ad_id": {
+            "type": "string"
+          },
+          "checksum": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "customer_id": {
+            "type": "string"
+          },
+          "descriptions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "final_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "headlines": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "login_customer_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "validate_only": {
+            "default": true,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "customer_id",
+          "ad_id",
+          "headlines",
+          "descriptions"
+        ],
+        "type": "object"
+      },
+      "name": "creative_replace_responsive_search_ad_copy",
+      "outputSchema": {
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object",
+        "x-fastmcp-wrap-result": true
+      },
+      "title": "Creative Replace Responsive Search Ad Copy"
+    },
+    {
+      "_meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      },
+      "annotations": {
         "readOnlyHint": true
       },
       "description": "Returns ids of customers directly accessible by the user authenticating the call.\n\nUse this tool first to discover available customer IDs if the user hasn't\nprovided one. Most other tools require a valid customer ID as input.",
