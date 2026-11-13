@@ -3,5 +3,6 @@ namespaces:
   search: true
   metadata: true
   campaigns: true
+  management: true
   labels: false
   assets: false
