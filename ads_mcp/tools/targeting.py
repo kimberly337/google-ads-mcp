@@ -74,7 +74,6 @@ def _prepare(
     request = client.get_type(request_type)
     request.customer_id = cid
     request.operations.extend(operations(client, cid))
-    request.partial_failure = False
     return cid, service, request, method
 
 
