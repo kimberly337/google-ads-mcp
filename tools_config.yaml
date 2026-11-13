@@ -5,5 +5,6 @@ namespaces:
   campaigns: true
   management: true
   creative: true
+  targeting: true
   labels: false
   assets: false
