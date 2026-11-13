@@ -1,4 +1,5 @@
 """Offline safety checks for campaign targeting; no customer mutation requests."""
+
 import unittest
 
 from fastmcp.exceptions import ToolError
@@ -18,7 +19,9 @@ class TargetingGuardrailsTest(unittest.TestCase):
             set(CENTRAL_OREGON_LOCATION_IDS),
             {"1024400", "1024548", "1024566", "1024545", "9196279"},
         )
-        self.assertEqual(CENTRAL_OREGON_LOCATION_IDS["1024548"], "Redmond, Oregon")
+        self.assertEqual(
+            CENTRAL_OREGON_LOCATION_IDS["1024548"], "Redmond, Oregon"
+        )
 
     def test_numeric_ids_reject_injection(self):
         for value in ("1/2", "1;DROP", "123abc", "", "  - "):
@@ -46,7 +49,9 @@ class TargetingGuardrailsTest(unittest.TestCase):
         self.assertIsNone(pac.verify_checksum("1212852768", payload, checksum))
         self.assertIsNotNone(pac.verify_checksum("1212852768", payload, None))
         self.assertIsNotNone(pac.verify_checksum("1212852768", payload, "bad"))
-        self.assertIsNotNone(pac.verify_checksum("9876543210", payload, checksum))
+        self.assertIsNotNone(
+            pac.verify_checksum("9876543210", payload, checksum)
+        )
         self.assertIsNotNone(
             pac.verify_checksum(
                 "1212852768", {**payload, "keywords": ["different"]}, checksum
