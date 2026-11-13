@@ -1,4 +1,5 @@
 """Offline guardrail tests: never connect to a live Google Ads account."""
+
 import unittest
 from fastmcp.exceptions import ToolError
 from ads_mcp import propose_and_confirm as pac
@@ -27,9 +28,8 @@ class Guardrails(unittest.TestCase):
         self.assertIsNotNone(pac.verify_checksum("1212852768", payload, "bad"))
         good = pac.compute_checksum("1212852768", payload)
         self.assertIsNone(pac.verify_checksum("1212852768", payload, good))
-        self.assertIsNotNone(
-            pac.verify_checksum("9999999999", payload, good)
-        )
+        self.assertIsNotNone(pac.verify_checksum("9999999999", payload, good))
+
 
 if __name__ == "__main__":
     unittest.main()
