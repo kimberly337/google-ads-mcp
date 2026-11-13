@@ -2,5 +2,6 @@ namespaces:
   customers: true
   search: true
   metadata: true
+  campaigns: true
   labels: false
   assets: false
