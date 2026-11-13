@@ -4,5 +4,6 @@ namespaces:
   metadata: true
   campaigns: true
   management: true
+  creative: true
   labels: false
   assets: false
