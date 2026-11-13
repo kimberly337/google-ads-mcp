@@ -22,12 +22,12 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install . pytest black google-genai
       - name: Format and regenerate tool schema reference
-        if: github.event_name == 'push'
+        if: github.event_name == 'pull_request'
         run: |
           python -m black -l 80 ads_mcp/tools/campaigns.py ads_mcp/tools/management.py ads_mcp/tools/creative.py tests/test_management_guardrails.py
           python -m tests.smoke.generate_golden
       - name: Commit reference and formatting changes
-        if: github.event_name == 'push'
+        if: github.event_name == 'pull_request'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
