@@ -58,10 +58,23 @@ def set_campaign_status(
     request.operations.append(operation)
     request.validate_only = True
 
-    payload = {"tool": "set_campaign_status", "campaign_id": campid, "status": wanted}
+    payload = {
+        "tool": "set_campaign_status",
+        "campaign_id": campid,
+        "status": wanted,
+    }
     changes = pac.build_change_items(
-        "UPDATE", "Campaign", resource_name,
-        {"New status": wanted, "Spend warning": "ENABLED can incur advertising spend" if wanted == "ENABLED" else "PAUSED stops serving"},
+        "UPDATE",
+        "Campaign",
+        resource_name,
+        {
+            "New status": wanted,
+            "Spend warning": (
+                "ENABLED can incur advertising spend"
+                if wanted == "ENABLED"
+                else "PAUSED stops serving"
+            ),
+        },
     )
 
     def validate() -> None:
@@ -74,9 +87,13 @@ def set_campaign_status(
         return f"Updated campaign status to {wanted}: {response.results[0].resource_name}"
 
     return pac.propose_and_confirm(
-        customer_id=cid, validate_only=validate_only, checksum=checksum,
-        operation_payload=payload, change_items=changes,
-        validate_fn=validate, commit_fn=commit,
+        customer_id=cid,
+        validate_only=validate_only,
+        checksum=checksum,
+        operation_payload=payload,
+        change_items=changes,
+        validate_fn=validate,
+        commit_fn=commit,
         error_prefix="Campaign status update failed",
     )
 
@@ -105,17 +122,27 @@ def set_daily_budget(
     try:
         amount = Decimal(str(daily_budget_amount))
     except (InvalidOperation, ValueError):
-        raise ToolError("daily_budget_amount must be a positive decimal number.")
+        raise ToolError(
+            "daily_budget_amount must be a positive decimal number."
+        )
     if not amount.is_finite() or amount <= 0:
-        raise ToolError("daily_budget_amount must be finite and greater than zero.")
+        raise ToolError(
+            "daily_budget_amount must be finite and greater than zero."
+        )
     if amount > Decimal("100000"):
-        raise ToolError("Amount exceeds the protective 100,000-unit per-day limit.")
+        raise ToolError(
+            "Amount exceeds the protective 100,000-unit per-day limit."
+        )
     if amount != amount.quantize(Decimal("0.01")):
         raise ToolError("Specify no more than two decimal places.")
-    micros = int((amount * Decimal("1000000")).to_integral_value(rounding=ROUND_HALF_UP))
+    micros = int(
+        (amount * Decimal("1000000")).to_integral_value(rounding=ROUND_HALF_UP)
+    )
 
     client = utils.get_googleads_client(login_customer_id=login_customer_id)
-    service = utils.get_googleads_service_from_client(client, "CampaignBudgetService")
+    service = utils.get_googleads_service_from_client(
+        client, "CampaignBudgetService"
+    )
     operation = client.get_type("CampaignBudgetOperation")
     resource_name = f"customers/{cid}/campaignBudgets/{bid}"
     operation.update.resource_name = resource_name
@@ -127,11 +154,19 @@ def set_daily_budget(
     request.operations.append(operation)
     request.validate_only = True
 
-    payload = {"tool": "set_daily_budget", "budget_id": bid, "amount_micros": micros}
+    payload = {
+        "tool": "set_daily_budget",
+        "budget_id": bid,
+        "amount_micros": micros,
+    }
     changes = pac.build_change_items(
-        "UPDATE", "Campaign budget", resource_name,
-        {"New average daily amount (account currency)": f"{amount:.2f}",
-         "Important": "Shared budgets affect all linked campaigns; Google may spend more on individual days."},
+        "UPDATE",
+        "Campaign budget",
+        resource_name,
+        {
+            "New average daily amount (account currency)": f"{amount:.2f}",
+            "Important": "Shared budgets affect all linked campaigns; Google may spend more on individual days.",
+        },
     )
 
     def validate() -> None:
@@ -144,8 +179,12 @@ def set_daily_budget(
         return f"Updated daily budget: {response.results[0].resource_name}"
 
     return pac.propose_and_confirm(
-        customer_id=cid, validate_only=validate_only, checksum=checksum,
-        operation_payload=payload, change_items=changes,
-        validate_fn=validate, commit_fn=commit,
+        customer_id=cid,
+        validate_only=validate_only,
+        checksum=checksum,
+        operation_payload=payload,
+        change_items=changes,
+        validate_fn=validate,
+        commit_fn=commit,
         error_prefix="Daily budget update failed",
     )
