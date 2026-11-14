@@ -1,6 +1,8 @@
 """Offline safety checks for campaign targeting; no customer mutation requests."""
 
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from fastmcp.exceptions import ToolError
 
@@ -10,6 +12,7 @@ from ads_mcp.tools.targeting import (
     _digits,
     _money_micros,
     _name,
+    _require_paused_pcp_campaign,
 )
 
 
@@ -22,6 +25,47 @@ class TargetingGuardrailsTest(unittest.TestCase):
         self.assertEqual(
             CENTRAL_OREGON_LOCATION_IDS["1024548"], "Redmond, Oregon"
         )
+
+    def test_us_pcp_targeting_rejects_active_or_unrelated_campaigns(self):
+        enum = SimpleNamespace(PAUSED="PAUSED", ENABLED="ENABLED")
+        client = SimpleNamespace(enums=SimpleNamespace(CampaignStatusEnum=enum))
+        for name, status, should_pass in [
+            ("E Factor | Performance Conversation Prep | USA", "PAUSED", True),
+            (
+                "E Factor | Performance Conversation Prep | USA",
+                "ENABLED",
+                False,
+            ),
+            ("E Factor | HR Consulting | Central Oregon", "PAUSED", False),
+        ]:
+            service = SimpleNamespace(
+                search=lambda **kwargs: [
+                    SimpleNamespace(
+                        campaign=SimpleNamespace(name=name, status=status)
+                    )
+                ]
+            )
+            with patch(
+                "ads_mcp.tools.targeting.utils.get_googleads_service_from_client",
+                return_value=service,
+            ):
+                if should_pass:
+                    _require_paused_pcp_campaign(client, "1212852768", "123456")
+                else:
+                    with self.assertRaises(ToolError):
+                        _require_paused_pcp_campaign(
+                            client, "1212852768", "123456"
+                        )
+
+    def test_us_pcp_targeting_fails_closed_with_missing_campaign(self):
+        client = SimpleNamespace()
+        service = SimpleNamespace(search=lambda **kwargs: [])
+        with patch(
+            "ads_mcp.tools.targeting.utils.get_googleads_service_from_client",
+            return_value=service,
+        ):
+            with self.assertRaises(ToolError):
+                _require_paused_pcp_campaign(client, "1212852768", "123456")
 
     def test_numeric_ids_reject_injection(self):
         for value in ("1/2", "1;DROP", "123abc", "", "  - "):

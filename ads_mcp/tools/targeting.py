@@ -163,6 +163,100 @@ def add_central_oregon_locations(
     )
 
 
+def _require_paused_pcp_campaign(client, customer_id, campaign_id):
+    """Fail closed: do not target an active or unrelated campaign."""
+    service = utils.get_googleads_service_from_client(
+        client, "GoogleAdsService"
+    )
+    query = (
+        "SELECT campaign.name, campaign.status FROM campaign "
+        f"WHERE campaign.id = {campaign_id} LIMIT 1"
+    )
+    rows = list(service.search(customer_id=customer_id, query=query))
+    if len(rows) != 1:
+        raise ToolError(
+            "Expected exactly one existing Performance Conversation Prep campaign."
+        )
+    campaign = rows[0].campaign
+    if (
+        "Performance Conversation Prep" not in campaign.name
+        or campaign.status != client.enums.CampaignStatusEnum.PAUSED
+    ):
+        raise ToolError(
+            "United States targeting requires an existing PAUSED "
+            "Performance Conversation Prep campaign."
+        )
+
+
+@targeting_mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False)
+)
+def add_pcp_united_states_targeting(
+    customer_id: str,
+    campaign_id: str,
+    login_customer_id: str | None = None,
+    validate_only: bool = True,
+    checksum: str | None = None,
+) -> str:
+    """Add verified U.S. nationwide (geo 2840) and English (language 1000)
+    criteria to an existing PAUSED Performance Conversation Prep campaign.
+
+    Rejects unrelated and enabled campaigns. Does NOT change campaign status,
+    budget, CPC, or geographic Presence setting. Default is validation only.
+    Explicit approval plus a matching checksum are required for commit.
+    Do not call until a separate paused PCP campaign has been approved/created.
+    """
+    camp = _digits(campaign_id, "campaign_id")
+    cid = _digits(customer_id, "customer_id")
+    client = utils.get_googleads_client(login_customer_id=login_customer_id)
+    _require_paused_pcp_campaign(client, cid, camp)
+
+    operations = []
+    location = client.get_type("CampaignCriterionOperation")
+    location.create.campaign = f"customers/{cid}/campaigns/{camp}"
+    location.create.location.geo_target_constant = "geoTargetConstants/2840"
+    operations.append(location)
+
+    language = client.get_type("CampaignCriterionOperation")
+    language.create.campaign = f"customers/{cid}/campaigns/{camp}"
+    language.create.language.language_constant = "languageConstants/1000"
+    operations.append(language)
+
+    service = utils.get_googleads_service_from_client(
+        client, "CampaignCriterionService"
+    )
+    request = client.get_type("MutateCampaignCriteriaRequest")
+    request.customer_id = cid
+    request.operations.extend(operations)
+    payload = {
+        "tool": "add_pcp_united_states_targeting",
+        "campaign_id": camp,
+        "location_id": "2840",
+        "language_id": "1000",
+    }
+    items = pac.build_change_items(
+        "CREATE",
+        "PCP campaign location and language targeting",
+        f"Campaign {camp}",
+        {
+            "Included country": "United States (2840)",
+            "Language": "English (1000)",
+            "Campaign must remain": "PAUSED",
+            "Location Presence": "Not changed; configure separately",
+        },
+    )
+    return _propose(
+        cid,
+        service,
+        request,
+        "mutate_campaign_criteria",
+        payload,
+        items,
+        validate_only,
+        checksum,
+    )
+
+
 @targeting_mcp.tool(
     annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False)
 )
