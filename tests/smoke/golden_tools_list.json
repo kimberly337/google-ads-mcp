@@ -1444,6 +1444,74 @@
         "destructiveHint": false,
         "readOnlyHint": false
       },
+      "description": "For an existing PAUSED PCP campaign, enable WEBSITE/SIGNUP bidding and\nexplicitly disable WEBSITE/BOOK_APPOINTMENT bidding in a single request.\n\nGoogle Ads automatically sets goal_config_level=CAMPAIGN when a campaign\nconversion goal is updated. This tool does not modify other campaigns,\ncustomer-wide goals, or conversion action settings. Its two goal updates\ncover category+origin, not a single action ID; verify actual actions first.\nDefaults to validation only; separate approval plus checksum for commit.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "campaign_id": {
+            "type": "string"
+          },
+          "checksum": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "customer_id": {
+            "type": "string"
+          },
+          "login_customer_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "validate_only": {
+            "default": true,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "customer_id",
+          "campaign_id"
+        ],
+        "type": "object"
+      },
+      "name": "targeting_set_pcp_signup_only_conversion_goals",
+      "outputSchema": {
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object",
+        "x-fastmcp-wrap-result": true
+      },
+      "title": "Targeting Set Pcp Signup Only Conversion Goals"
+    },
+    {
+      "_meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "readOnlyHint": false
+      },
       "description": "Configure location-positive PRESENCE (not interest) and a CPC ceiling for\nan existing Maximize Clicks/TargetSpend campaign. Do not activate campaigns.\nCPC ceiling is a bid limit, NOT a total campaign spend limit.",
       "inputSchema": {
         "additionalProperties": false,

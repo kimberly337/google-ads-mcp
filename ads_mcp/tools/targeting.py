@@ -651,3 +651,116 @@ def attach_booking_sitelink(
     return _propose(
         cid, service, request, method, payload, items, validate_only, checksum
     )
+
+
+def _verify_pcp_conversion_actions(client, customer_id):
+    """Check the account's actual conversion categories and origins before write."""
+    service = utils.get_googleads_service_from_client(
+        client, "GoogleAdsService"
+    )
+    query = (
+        "SELECT conversion_action.id, conversion_action.category, "
+        "conversion_action.origin, conversion_action.status "
+        "FROM conversion_action WHERE conversion_action.id IN "
+        "(7903192727, 7902224587)"
+    )
+    rows = list(service.search(customer_id=customer_id, query=query))
+    found = {
+        str(row.conversion_action.id): row.conversion_action for row in rows
+    }
+    expected = {
+        "7903192727": client.enums.ConversionActionCategoryEnum.SIGNUP,
+        "7902224587": client.enums.ConversionActionCategoryEnum.BOOK_APPOINTMENT,
+    }
+    if set(found) != set(expected):
+        raise ToolError("Both verified E Factor conversion actions must exist.")
+    for action_id, category in expected.items():
+        action = found[action_id]
+        if (
+            action.category != category
+            or action.origin != client.enums.ConversionOriginEnum.WEBSITE
+            or action.status != client.enums.ConversionActionStatusEnum.ENABLED
+        ):
+            raise ToolError(
+                "The PCP signup or HR appointment conversion action no "
+                "longer matches its approved category, origin, and status."
+            )
+
+
+@targeting_mcp.tool(
+    annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False)
+)
+def set_pcp_signup_only_conversion_goals(
+    customer_id: str,
+    campaign_id: str,
+    login_customer_id: str | None = None,
+    validate_only: bool = True,
+    checksum: str | None = None,
+) -> str:
+    """For an existing PAUSED PCP campaign, enable WEBSITE/SIGNUP bidding and
+    explicitly disable WEBSITE/BOOK_APPOINTMENT bidding in a single request.
+
+    Google Ads automatically sets goal_config_level=CAMPAIGN when a campaign
+    conversion goal is updated. This tool does not modify other campaigns,
+    customer-wide goals, or conversion action settings. Its two goal updates
+    cover category+origin, not a single action ID; verify actual actions first.
+    Defaults to validation only; separate approval plus checksum for commit.
+    """
+    camp = _digits(campaign_id, "campaign_id")
+    cid = _digits(customer_id, "customer_id")
+    client = utils.get_googleads_client(login_customer_id=login_customer_id)
+    _require_paused_pcp_campaign(client, cid, camp)
+    _verify_pcp_conversion_actions(client, cid)
+
+    operations = []
+    for category, biddable in [
+        ("SIGNUP", True),
+        ("BOOK_APPOINTMENT", False),
+    ]:
+        op = client.get_type("CampaignConversionGoalOperation")
+        goal = op.update
+        goal.resource_name = (
+            f"customers/{cid}/campaignConversionGoals/"
+            f"{camp}~{category}~WEBSITE"
+        )
+        goal.biddable = biddable
+        op.update_mask.paths.append("biddable")
+        operations.append(op)
+
+    service = utils.get_googleads_service_from_client(
+        client, "CampaignConversionGoalService"
+    )
+    request = client.get_type("MutateCampaignConversionGoalsRequest")
+    request.customer_id = cid
+    request.operations.extend(operations)
+    payload = {
+        "tool": "set_pcp_signup_only_conversion_goals",
+        "campaign_id": camp,
+        "signup": {"category": "SIGNUP", "origin": "WEBSITE", "biddable": True},
+        "consultation": {
+            "category": "BOOK_APPOINTMENT",
+            "origin": "WEBSITE",
+            "biddable": False,
+        },
+    }
+    items = pac.build_change_items(
+        "UPDATE",
+        "PCP campaign-specific conversion goals",
+        f"Campaign {camp}",
+        {
+            "PCP sign-up goal": "SIGNUP / WEBSITE = biddable",
+            "HR appointment goal": "BOOK_APPOINTMENT / WEBSITE = not biddable",
+            "Campaign goal level": "CAMPAIGN (automatic on update)",
+            "Account and other campaign goals": "unchanged",
+        },
+    )
+    return _propose(
+        cid,
+        service,
+        request,
+        "mutate_campaign_conversion_goals",
+        payload,
+        items,
+        validate_only,
+        checksum,
+    )
