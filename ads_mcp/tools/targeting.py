@@ -163,17 +163,20 @@ def add_central_oregon_locations(
     )
 
 
-
 def _require_paused_pcp_campaign(client, customer_id, campaign_id):
     """Fail closed: do not target an active or unrelated campaign."""
-    service = utils.get_googleads_service_from_client(client, "GoogleAdsService")
+    service = utils.get_googleads_service_from_client(
+        client, "GoogleAdsService"
+    )
     query = (
         "SELECT campaign.name, campaign.status FROM campaign "
         f"WHERE campaign.id = {campaign_id} LIMIT 1"
     )
     rows = list(service.search(customer_id=customer_id, query=query))
     if len(rows) != 1:
-        raise ToolError("Expected exactly one existing Performance Conversation Prep campaign.")
+        raise ToolError(
+            "Expected exactly one existing Performance Conversation Prep campaign."
+        )
     campaign = rows[0].campaign
     if (
         "Performance Conversation Prep" not in campaign.name
@@ -243,8 +246,14 @@ def add_pcp_united_states_targeting(
         },
     )
     return _propose(
-        cid, service, request, "mutate_campaign_criteria", payload,
-        items, validate_only, checksum
+        cid,
+        service,
+        request,
+        "mutate_campaign_criteria",
+        payload,
+        items,
+        validate_only,
+        checksum,
     )
 
 

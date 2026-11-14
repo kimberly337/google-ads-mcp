@@ -31,12 +31,18 @@ class TargetingGuardrailsTest(unittest.TestCase):
         client = SimpleNamespace(enums=SimpleNamespace(CampaignStatusEnum=enum))
         for name, status, should_pass in [
             ("E Factor | Performance Conversation Prep | USA", "PAUSED", True),
-            ("E Factor | Performance Conversation Prep | USA", "ENABLED", False),
+            (
+                "E Factor | Performance Conversation Prep | USA",
+                "ENABLED",
+                False,
+            ),
             ("E Factor | HR Consulting | Central Oregon", "PAUSED", False),
         ]:
             service = SimpleNamespace(
                 search=lambda **kwargs: [
-                    SimpleNamespace(campaign=SimpleNamespace(name=name, status=status))
+                    SimpleNamespace(
+                        campaign=SimpleNamespace(name=name, status=status)
+                    )
                 ]
             )
             with patch(

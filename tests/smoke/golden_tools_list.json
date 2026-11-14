@@ -1065,6 +1065,74 @@
         "destructiveHint": false,
         "readOnlyHint": false
       },
+      "description": "Add verified U.S. nationwide (geo 2840) and English (language 1000)\ncriteria to an existing PAUSED Performance Conversation Prep campaign.\n\nRejects unrelated and enabled campaigns. Does NOT change campaign status,\nbudget, CPC, or geographic Presence setting. Default is validation only.\nExplicit approval plus a matching checksum are required for commit.\nDo not call until a separate paused PCP campaign has been approved/created.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "campaign_id": {
+            "type": "string"
+          },
+          "checksum": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "customer_id": {
+            "type": "string"
+          },
+          "login_customer_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "validate_only": {
+            "default": true,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "customer_id",
+          "campaign_id"
+        ],
+        "type": "object"
+      },
+      "name": "targeting_add_pcp_united_states_targeting",
+      "outputSchema": {
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object",
+        "x-fastmcp-wrap-result": true
+      },
+      "title": "Targeting Add Pcp United States Targeting"
+    },
+    {
+      "_meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "readOnlyHint": false
+      },
       "description": "Add up to 25 positive exact- or phrase-match keywords to an existing ad group.\nSpecify match_type EXACT or PHRASE; do not include bracket/quote notation.\nValidation-only by default.",
       "inputSchema": {
         "additionalProperties": false,
