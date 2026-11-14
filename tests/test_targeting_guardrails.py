@@ -13,6 +13,7 @@ from ads_mcp.tools.targeting import (
     _money_micros,
     _name,
     _require_paused_pcp_campaign,
+    _verify_pcp_conversion_actions,
 )
 
 
@@ -66,6 +67,49 @@ class TargetingGuardrailsTest(unittest.TestCase):
         ):
             with self.assertRaises(ToolError):
                 _require_paused_pcp_campaign(client, "1212852768", "123456")
+
+    def test_pcp_goal_action_validation(self):
+        enums = SimpleNamespace(
+            ConversionActionCategoryEnum=SimpleNamespace(
+                SIGNUP="SIGNUP", BOOK_APPOINTMENT="BOOK_APPOINTMENT"
+            ),
+            ConversionOriginEnum=SimpleNamespace(WEBSITE="WEBSITE"),
+            ConversionActionStatusEnum=SimpleNamespace(ENABLED="ENABLED"),
+        )
+        client = SimpleNamespace(enums=enums)
+
+        def make_rows(appointment_category="BOOK_APPOINTMENT", signup_status="ENABLED"):
+            return [
+                SimpleNamespace(
+                    conversion_action=SimpleNamespace(
+                        id=7903192727, category="SIGNUP", origin="WEBSITE",
+                        status=signup_status
+                    )
+                ),
+                SimpleNamespace(
+                    conversion_action=SimpleNamespace(
+                        id=7902224587, category=appointment_category,
+                        origin="WEBSITE", status="ENABLED"
+                    )
+                ),
+            ]
+
+        for rows, should_pass in [
+            (make_rows(), True),
+            (make_rows(appointment_category="PURCHASE"), False),
+            (make_rows(signup_status="REMOVED"), False),
+            (make_rows()[:1], False),
+        ]:
+            service = SimpleNamespace(search=lambda **kwargs: rows)
+            with patch(
+                "ads_mcp.tools.targeting.utils.get_googleads_service_from_client",
+                return_value=service,
+            ):
+                if should_pass:
+                    _verify_pcp_conversion_actions(client, "1212852768")
+                else:
+                    with self.assertRaises(ToolError):
+                        _verify_pcp_conversion_actions(client, "1212852768")
 
     def test_numeric_ids_reject_injection(self):
         for value in ("1/2", "1;DROP", "123abc", "", "  - "):
