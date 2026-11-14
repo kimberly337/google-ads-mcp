@@ -78,18 +78,24 @@ class TargetingGuardrailsTest(unittest.TestCase):
         )
         client = SimpleNamespace(enums=enums)
 
-        def make_rows(appointment_category="BOOK_APPOINTMENT", signup_status="ENABLED"):
+        def make_rows(
+            appointment_category="BOOK_APPOINTMENT", signup_status="ENABLED"
+        ):
             return [
                 SimpleNamespace(
                     conversion_action=SimpleNamespace(
-                        id=7903192727, category="SIGNUP", origin="WEBSITE",
-                        status=signup_status
+                        id=7903192727,
+                        category="SIGNUP",
+                        origin="WEBSITE",
+                        status=signup_status,
                     )
                 ),
                 SimpleNamespace(
                     conversion_action=SimpleNamespace(
-                        id=7902224587, category=appointment_category,
-                        origin="WEBSITE", status="ENABLED"
+                        id=7902224587,
+                        category=appointment_category,
+                        origin="WEBSITE",
+                        status="ENABLED",
                     )
                 ),
             ]

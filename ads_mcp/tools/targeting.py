@@ -655,7 +655,9 @@ def attach_booking_sitelink(
 
 def _verify_pcp_conversion_actions(client, customer_id):
     """Check the account's actual conversion categories and origins before write."""
-    service = utils.get_googleads_service_from_client(client, "GoogleAdsService")
+    service = utils.get_googleads_service_from_client(
+        client, "GoogleAdsService"
+    )
     query = (
         "SELECT conversion_action.id, conversion_action.category, "
         "conversion_action.origin, conversion_action.status "
@@ -762,4 +764,3 @@ def set_pcp_signup_only_conversion_goals(
         validate_only,
         checksum,
     )
-
